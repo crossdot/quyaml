@@ -113,7 +113,7 @@ fn find(doc: &Yaml, path: &[&str], sp: &[Yaml]) {
 fn check(doc: &Yaml, condition: &Option<regex::Match>) -> bool {
     if let Some(condition_match) = condition {
         let condition_str = condition_match.as_str();
-        let re = Regex::new(r"^\s*(.*?)\s*(=|==|!=|>|<)\s*(.*?)$").unwrap();
+        let re = Regex::new(r"^\s*(.*?)\s*(==|=|!=|>|<)\s*(.*?)$").unwrap();
         let cap = re.captures(&condition_str).unwrap();
 
         let l = cap.get(1).map_or("", |m| m.as_str());
