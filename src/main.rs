@@ -51,8 +51,8 @@ fn find(doc: &Yaml, path: &[&str], sp: &[Yaml]) {
                 find(&doc[key], &path[1..], &[sp, &[Yaml::String(key.to_owned())]].concat())
             },
             Yaml::Array(ref array) if key != "*" => {
-                if let Ok(intkey) = key.parse::<i64>() {
-                    find(&doc[key], &path[1..], &[sp, &[Yaml::String(key.to_owned())]].concat())
+                if let Ok(intkey) = key.parse::<usize>() {
+                    find(&doc[intkey], &path[1..], &[sp, &[Yaml::Integer(intkey as i64)]].concat())
                 }
             },
             Yaml::Hash(ref map) => {
