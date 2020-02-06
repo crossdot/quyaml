@@ -41,35 +41,35 @@ services:
     find(&doc, path.as_slice(), &[]);
 }
 
-fn find(doc: &Yaml, path: &[&str], sp: &[&str]) {
+fn find(doc: &Yaml, path: &[&str], sp: &[Yaml]) {
     if path.len() == 0 {
         println!("{:?} = {:?}", &sp, &doc);
     } else {
         let key = path[0];
         match &doc {
             Yaml::Hash(ref map) if key != "*" => {
-                find(&doc[key], &path[1..], &[sp, &[key]].concat())
+                find(&doc[key], &path[1..], &[sp, &[Yaml::String(key.to_owned())]].concat())
             },
             Yaml::Array(ref array) if key != "*" => {
-                find(&doc[key], &path[1..], &[sp, &[key]].concat())
+                find(&doc[key], &path[1..], &[sp, &[Yaml::String(key.to_owned())]].concat())
             },
             Yaml::Hash(ref map) => {
                 for entry in map.iter() {
                     match entry.0 {
                         Yaml::Real(v) => {
-                            find(&entry.1, &path[1..], &[sp, &[&format!("{}", v)]].concat())
+                            find(&entry.1, &path[1..], &[sp, &[entry.0.clone()]].concat())
                         },
                         Yaml::Integer(v) => {
-                            find(&entry.1, &path[1..], &[sp, &[&format!("{}", v)]].concat())
+                            find(&entry.1, &path[1..], &[sp, &[entry.0.clone()]].concat())
                         },
                         Yaml::String(ref s) => {
-                            find(&entry.1, &path[1..], &[sp, &[s]].concat())
+                            find(&entry.1, &path[1..], &[sp, &[entry.0.clone()]].concat())
                         },
                         Yaml::Boolean(v) => {
-                            find(&entry.1, &path[1..], &[sp, &[&format!("{}", v)]].concat())
+                            find(&entry.1, &path[1..], &[sp, &[entry.0.clone()]].concat())
                         },
                         Yaml::Null => {
-                            find(&entry.1, &path[1..], &[sp, &[&format!("{}", "null")]].concat())
+                            find(&entry.1, &path[1..], &[sp, &[entry.0.clone()]].concat())
                         },
                         _ => {
                             println!("wrong type {:?}", entry.0);
@@ -77,8 +77,8 @@ fn find(doc: &Yaml, path: &[&str], sp: &[&str]) {
                     }
                 }
             },
-            Yaml::Array(ref array) if key == "*" => {
-                find(&doc[key], &path[1..], &[sp, &[key]].concat())
+            Yaml::Array(ref array) => {
+                find(&doc[key], &path[1..], &[sp, &[Yaml::Integer(0)]].concat())
             },
             _ => {
 
