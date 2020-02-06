@@ -1,6 +1,9 @@
 use yaml_rust::{YamlLoader, Yaml};
 use clap::Clap;
 
+// use std::io::prelude::*;
+// use std::io::{self, BufRead, Read};
+
 /// Query path over yaml file
 #[derive(Clap)]
 #[clap(version = "1.0", author = "Pavlikov V.")]
@@ -13,9 +16,9 @@ struct Opts {
     path: String,
 }
 
-fn main() {
+fn main() -> Result<(), std::io::Error> {
     let opts: Opts = Opts::parse();
-
+    
     let s =
 "
 services:
@@ -39,6 +42,7 @@ services:
     //     println!("{}", s)
     // }
     find(&doc, path.as_slice(), &[]);
+    Ok(())
 }
 
 fn find(doc: &Yaml, path: &[&str], sp: &[Yaml]) {
