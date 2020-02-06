@@ -19,10 +19,10 @@ fn main() {
     let s =
 "
 services:
-    0:
+    -
         image: postgres
         scale: 1
-    1:
+    -
         image: nginx
         scale: 0
 ";
@@ -51,7 +51,9 @@ fn find(doc: &Yaml, path: &[&str], sp: &[Yaml]) {
                 find(&doc[key], &path[1..], &[sp, &[Yaml::String(key.to_owned())]].concat())
             },
             Yaml::Array(ref array) if key != "*" => {
-                find(&doc[key], &path[1..], &[sp, &[Yaml::String(key.to_owned())]].concat())
+                if let Ok(intkey) = key.parse::<i64>() {
+                    find(&doc[key], &path[1..], &[sp, &[Yaml::String(key.to_owned())]].concat())
+                }
             },
             Yaml::Hash(ref map) => {
                 for entry in map.iter() {
