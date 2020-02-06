@@ -120,24 +120,41 @@ fn check(doc: &Yaml, condition: &Option<regex::Match>) -> bool {
         let e = cap.get(2).map_or("", |m| m.as_str());
         let r = cap.get(3).map_or("", |m| m.as_str());
 
-        let path: Vec<&str> = l.split(".").collect();
+        let l = normalize(&doc, l);
+        let r = normalize(&doc, r);
 
-        let value = get(&doc, path.as_slice());
-        match value {
+        match l {
             Yaml::Integer(a) => {
-                if let Ok(b) = r.parse::<i64>() {
+                if let Yaml::Integer(b) = r {
                     match e {
                         "=" | "==" => {
-                            return *a == b
+                            return a == b
                         },
                         "!=" => {
-                            return *a != b
+                            return a != b
                         },
                         ">" => {
-                            return *a > b
+                            return a > b
                         },
                         "<" => {
-                            return *a < b
+                            return a < b
+                        },
+                        _ => {
+                            return false;
+                        }
+                    }
+                } else {
+                    return false;
+                }
+            },
+            Yaml::String(a) => {
+                if let Yaml::String(b) = r {
+                    match e {
+                        "=" | "==" => {
+                            return a == b
+                        },
+                        "!=" => {
+                            return a != b
                         },
                         _ => {
                             return false;
@@ -151,14 +168,36 @@ fn check(doc: &Yaml, condition: &Option<regex::Match>) -> bool {
                 return false;
             },
         }
-
-        // if let Yaml::Integer(v) = value {
-        //     if *v != r {
-        //         return false;
-        //     }
-        // }
     }
     return true;
+}
+
+fn normalize(doc: &Yaml, str: &str) -> Yaml {
+    match str.chars().next() {
+        Some('"') => {
+            let mut s = str.chars().next().map(|c| &str[c.len_utf8()..]).unwrap().to_string();
+            s.pop();
+            Yaml::String(s.to_owned())
+        },
+        Some('-') |
+        Some('0') |
+        Some('1') |
+        Some('2') |
+        Some('3') |
+        Some('4') |
+        Some('5') |
+        Some('6') |
+        Some('7') |
+        Some('8') |
+        Some('9') => {
+            Yaml::Integer(str.parse::<i64>().unwrap())
+        }
+        _ => {
+            let path: Vec<&str> = str.split(".").collect();
+            let value = get(&doc, path.as_slice());
+            value.clone()
+        }
+    }
 }
 
 fn get<'a>(doc: &'a Yaml, path: &[&str]) -> &'a Yaml {
