@@ -19,36 +19,15 @@ fn main() {
     let s =
 "
 services:
-    db:
+    '0':
         image: postgres
         scale: 1
-    front:
+    0:
         image: nginx
         scale: 0
 ";
     let docs = YamlLoader::load_from_str(s).unwrap();
-    // Multi document support, doc is a yaml::Yaml
     let doc = &docs[0];
-    // Debug support
-    // println!("{:?}", doc);
-
-    // println!("{:?}", doc["services"]["db"]);
-
-    // Index access for map & array
-    // assert_eq!(doc["foo"][0].as_str().unwrap(), "list1");
-    // assert_eq!(doc["bar"][1].as_f64().unwrap(), 2.0);
-
-    // Chained key/array access is checked and won't panic,
-    // return BadValue if they are not exist.
-    // assert!(doc["INVALID_KEY"][100].is_badvalue());
-
-    // Dump the YAML object
-    // let mut out_str = String::new();
-    // {
-    //     let mut emitter = YamlEmitter::new(&mut out_str);
-    //     emitter.dump(doc).unwrap(); // dump the YAML object to a String
-    // }
-    // println!("{}", out_str);
 
     let splitted_path = opts.path.split("/");
     let path: Vec<&str> = splitted_path.collect();
@@ -64,14 +43,46 @@ services:
 
 fn find(doc: &Yaml, path: &[&str], sp: &[&str]) {
     if path.len() == 0 {
-        println!("{:?}", sp);
+        println!("{:?} = {:?}", &sp, &doc);
     } else {
-        let search = path[0];
-        match search {
-            "*" => {
-                println!("loop")
+        let key = path[0];
+        match &doc {
+            Yaml::Hash(ref map) if key != "*" => {
+                find(&doc[key], &path[1..], &[sp, &[key]].concat())
             },
-            _ => find(&doc[search], &path[1..], &[sp, &[search]].concat()),
+            Yaml::Array(ref array) if key != "*" => {
+                find(&doc[key], &path[1..], &[sp, &[key]].concat())
+            },
+            Yaml::Hash(ref map) => {
+                for entry in map.iter() {
+                    match entry.0 {
+                        Yaml::Real(v) => {
+                            find(&entry.1, &path[1..], &[sp, &[&format!("{}", v)]].concat())
+                        },
+                        Yaml::Integer(v) => {
+                            find(&entry.1, &path[1..], &[sp, &[&format!("{}", v)]].concat())
+                        },
+                        Yaml::String(ref s) => {
+                            find(&entry.1, &path[1..], &[sp, &[s]].concat())
+                        },
+                        Yaml::Boolean(v) => {
+                            find(&entry.1, &path[1..], &[sp, &[&format!("{}", v)]].concat())
+                        },
+                        Yaml::Null => {
+                            find(&entry.1, &path[1..], &[sp, &[&format!("{}", "null")]].concat())
+                        },
+                        _ => {
+                            println!("wrong type {:?}", entry.0);
+                        },
+                    }
+                }
+            },
+            Yaml::Array(ref array) if key == "*" => {
+                find(&doc[key], &path[1..], &[sp, &[key]].concat())
+            },
+            _ => {
+
+            }
         }
     }
 }
