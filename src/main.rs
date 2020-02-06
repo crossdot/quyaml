@@ -120,7 +120,9 @@ fn check(doc: &Yaml, condition: &Option<regex::Match>) -> bool {
         let e = cap.get(2).map_or("", |m| m.as_str());
         let r = cap.get(3).map_or("", |m| m.as_str());
 
-        let value = get(&doc, &[l]);
+        let path: Vec<&str> = l.split(".").collect();
+
+        let value = get(&doc, path.as_slice());
         match value {
             Yaml::Integer(a) => {
                 if let Ok(b) = r.parse::<i64>() {
