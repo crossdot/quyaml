@@ -19,10 +19,10 @@ fn main() {
     let s =
 "
 services:
-    '0':
+    0:
         image: postgres
         scale: 1
-    0:
+    1:
         image: nginx
         scale: 0
 ";
@@ -55,30 +55,13 @@ fn find(doc: &Yaml, path: &[&str], sp: &[Yaml]) {
             },
             Yaml::Hash(ref map) => {
                 for entry in map.iter() {
-                    match entry.0 {
-                        Yaml::Real(v) => {
-                            find(&entry.1, &path[1..], &[sp, &[entry.0.clone()]].concat())
-                        },
-                        Yaml::Integer(v) => {
-                            find(&entry.1, &path[1..], &[sp, &[entry.0.clone()]].concat())
-                        },
-                        Yaml::String(ref s) => {
-                            find(&entry.1, &path[1..], &[sp, &[entry.0.clone()]].concat())
-                        },
-                        Yaml::Boolean(v) => {
-                            find(&entry.1, &path[1..], &[sp, &[entry.0.clone()]].concat())
-                        },
-                        Yaml::Null => {
-                            find(&entry.1, &path[1..], &[sp, &[entry.0.clone()]].concat())
-                        },
-                        _ => {
-                            println!("wrong type {:?}", entry.0);
-                        },
-                    }
+                    find(&entry.1, &path[1..], &[sp, &[entry.0.clone()]].concat());
                 }
             },
             Yaml::Array(ref array) => {
-                find(&doc[key], &path[1..], &[sp, &[Yaml::Integer(0)]].concat())
+                for (i, v) in array.iter().enumerate() {
+                    find(&v, &path[1..], &[sp, &[Yaml::Integer(i as i64)]].concat());
+                }
             },
             _ => {
 
