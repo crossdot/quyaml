@@ -27,19 +27,19 @@ pub struct Query {
 }
 
 
-#[derive(Default)]
-pub struct ParseError;
-impl std::fmt::Display for ParseError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "A parsing error occurred.")
-	}
-}
-impl std::fmt::Debug for ParseError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		<ParseError as std::fmt::Display>::fmt(self, f)
-	}
-}
-impl std::error::Error for ParseError { }
+// #[derive(Default)]
+// pub struct ParseError;
+// impl std::fmt::Display for ParseError {
+// 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+// 		write!(f, "A parsing error occurred.")
+// 	}
+// }
+// impl std::fmt::Debug for ParseError {
+// 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+// 		<ParseError as std::fmt::Display>::fmt(self, f)
+// 	}
+// }
+// impl std::error::Error for ParseError { }
 
 pub(self) mod parsers {
     use super::*;
@@ -91,11 +91,26 @@ pub(self) mod parsers {
 
     #[allow(unused)]
     fn quoted_string(i: &str) -> nom::IResult<&str, &str> {
-        nom::sequence::delimited(
-            nom::bytes::complete::tag("\""),
-            nom::bytes::complete::is_not("\""),
-            nom::bytes::complete::tag("\"")
-        )(i)
+        nom::branch::alt((
+            nom::sequence::delimited(
+                nom::bytes::complete::tag("\""),
+                nom::bytes::complete::escaped(
+                    nom::bytes::complete::is_not("\\\""),
+                    '\\',
+                    nom::bytes::complete::is_a("\\\""),
+                ),
+                nom::bytes::complete::tag("\"")
+            ),
+            nom::sequence::delimited(
+                nom::bytes::complete::tag("'"),
+                nom::bytes::complete::escaped(
+                    nom::bytes::complete::is_not("\\'"),
+                    '\\',
+                    nom::bytes::complete::is_a("\\'"),
+                ),
+                nom::bytes::complete::tag("'")
+            ),
+        ))(i)
     }
 
     #[allow(unused)]
@@ -104,13 +119,7 @@ pub(self) mod parsers {
             nom::combinator::map(nom::bytes::complete::tag("true"), |_| Statement::Boolean(true)),
             nom::combinator::map(nom::bytes::complete::tag("false"), |_| Statement::Boolean(false)),
             nom::combinator::map(nom::bytes::complete::tag("null"), |_| Statement::None),
-            nom::combinator::map(
-                nom::sequence::delimited(
-                    nom::character::complete::char('"'),
-                    nom::bytes::complete::is_not("\\. "),
-                    nom::character::complete::char('"'),
-                )
-            , |s: &str| Statement::String(s.to_owned())),
+            nom::combinator::map(quoted_string, |s: &str| Statement::String(s.to_owned())),
         ))(i)
 	}
 
@@ -193,7 +202,10 @@ pub(self) mod parsers {
 
         #[test]
         fn test_quoted_string() {
-            assert_eq!(quoted_string("\"hello\""), Ok(("", "hello")))
+            assert_eq!(quoted_string("\"hello\""), Ok(("", "hello")));
+            assert_eq!(quoted_string("\"he\\\"llo\""), Ok(("", "he\\\"llo")));
+            assert_eq!(quoted_string("'hello'"), Ok(("", "hello")));
+            assert_eq!(quoted_string("'he\\'llo'"), Ok(("", "he\\'llo")));
         }
 		
 		#[test]
@@ -201,7 +213,7 @@ pub(self) mod parsers {
 			assert_eq!(value("true"), Ok(("", Statement::Boolean(true))));
 			assert_eq!(value("false"), Ok(("", Statement::Boolean(false))));
 			assert_eq!(value("null"), Ok(("", Statement::None)));
-			// assert_eq!(value("\"hello\""), Ok(("", Statement::String("hello".to_owned()))));
+			assert_eq!(value("\"hello\""), Ok(("", Statement::String("hello".to_owned()))));
         }
 		
 		// #[test]
