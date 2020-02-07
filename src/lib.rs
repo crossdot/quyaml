@@ -1,7 +1,14 @@
 #[derive(Clone, Default, Debug)]
+pub struct Condition {
+    pub left : String,
+    pub sign : String,
+    pub right : String,
+}
+
+#[derive(Clone, Default, Debug)]
 pub struct PathEntry {
     pub key: Option<String>,
-    pub condition: Option<String>,
+    pub condition: Option<Condition>,
 }
 
 #[derive(Clone, Default, Debug)]
@@ -52,14 +59,14 @@ pub(self) mod parsers {
             // ))
         )(i)
 	}
-        
+
     fn path(i: &str) -> nom::IResult<&str, Vec<&str>> {
         nom::multi::separated_list(
             nom::character::complete::char('.'),
             escaped
         )(i)
     }
-        
+
     fn transform_path(i: &str) -> nom::IResult<&str, Vec<String>> {
         nom::multi::separated_list(
             nom::character::complete::char('.'),
@@ -100,5 +107,15 @@ pub(self) mod parsers {
 			assert_eq!(transform_path("first.second"), Ok(("", vec!["first".to_owned(), "second".to_owned()])));
 			assert_eq!(transform_path("first.sec\\.ond"), Ok(("", vec!["first".to_owned(), "sec.ond".to_owned()])));
         }
+		
+		// #[test]
+		// fn test_condition() {
+		// 	assert_eq!(condition("third.fourth=1"), Ok(("", vec![])));
+        // }
+		
+		// #[test]
+		// fn test_query() {
+		// 	assert_eq!(query("first.second(third.fourth=1).third"), Ok(("", vec![])));
+        // }
     }
 }
