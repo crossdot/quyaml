@@ -23,21 +23,21 @@ pub struct PathEntry {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Query {
-	pub path: Vec<PathEntry>,
+    pub path: Vec<PathEntry>,
 }
 
 
 // #[derive(Default)]
 // pub struct ParseError;
 // impl std::fmt::Display for ParseError {
-// 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-// 		write!(f, "A parsing error occurred.")
-// 	}
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         write!(f, "A parsing error occurred.")
+//     }
 // }
 // impl std::fmt::Debug for ParseError {
-// 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-// 		<ParseError as std::fmt::Display>::fmt(self, f)
-// 	}
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         <ParseError as std::fmt::Display>::fmt(self, f)
+//     }
 // }
 // impl std::error::Error for ParseError { }
 
@@ -81,7 +81,7 @@ pub(self) mod parsers {
     }
 
     #[allow(unused)]
-	fn value(i: &str) -> nom::IResult<&str, Statement> {
+    fn value(i: &str) -> nom::IResult<&str, Statement> {
         nom::branch::alt((
             nom::combinator::map(nom::bytes::complete::tag("true"), |_| Statement::Boolean(true)),
             nom::combinator::map(nom::bytes::complete::tag("false"), |_| Statement::Boolean(false)),
@@ -89,24 +89,24 @@ pub(self) mod parsers {
             nom::combinator::map(quoted_string, |s: &str| Statement::String(s.to_owned())),
             nom::combinator::map(unescaped_path, |path: Vec<String>| Statement::Path(path)),
         ))(i)
-	}
+    }
 
     #[allow(unused)]
     fn condition(i: &str) -> nom::IResult<&str, Condition> {
         match nom::combinator::all_consuming(nom::sequence::tuple((
             nom::character::complete::space0,
             value,
-			nom::character::complete::space0,
+            nom::character::complete::space0,
             nom::branch::alt((
                 nom::bytes::complete::tag("=="),
                 nom::bytes::complete::tag("!="),
                 nom::bytes::complete::tag(">"),
                 nom::bytes::complete::tag("<"),
             )),
-			nom::character::complete::space0,
+            nom::character::complete::space0,
             value,
-			nom::character::complete::space0,
-		)))(i) {
+            nom::character::complete::space0,
+        )))(i) {
             Ok((remaining_input, (
                 _,
                 left,
@@ -127,15 +127,15 @@ pub(self) mod parsers {
     }
 
     #[cfg(test)]
-	mod tests {
+    mod tests {
         use super::*;
-		
-		#[test]
-		fn test_unescaped_path() {
-			assert_eq!(unescaped_path("first"), Ok(("", vec!["first".to_owned()])));
-			assert_eq!(unescaped_path("fir\\\\st"), Ok(("", vec!["fir\\st".to_owned()])));
-			assert_eq!(unescaped_path("first.second"), Ok(("", vec!["first".to_owned(), "second".to_owned()])));
-			assert_eq!(unescaped_path("first.sec\\.ond"), Ok(("", vec!["first".to_owned(), "sec.ond".to_owned()])));
+        
+        #[test]
+        fn test_unescaped_path() {
+            assert_eq!(unescaped_path("first"), Ok(("", vec!["first".to_owned()])));
+            assert_eq!(unescaped_path("fir\\\\st"), Ok(("", vec!["fir\\st".to_owned()])));
+            assert_eq!(unescaped_path("first.second"), Ok(("", vec!["first".to_owned(), "second".to_owned()])));
+            assert_eq!(unescaped_path("first.sec\\.ond"), Ok(("", vec!["first".to_owned(), "sec.ond".to_owned()])));
         }
 
         #[test]
@@ -145,29 +145,29 @@ pub(self) mod parsers {
             assert_eq!(quoted_string("'hello'"), Ok(("", "hello")));
             assert_eq!(quoted_string("'he\\'llo'"), Ok(("", "he\\'llo")));
         }
-		
-		#[test]
-		fn test_value() {
-			assert_eq!(value("true"), Ok(("", Statement::Boolean(true))));
-			assert_eq!(value("false"), Ok(("", Statement::Boolean(false))));
-			assert_eq!(value("null"), Ok(("", Statement::None)));
+        
+        #[test]
+        fn test_value() {
+            assert_eq!(value("true"), Ok(("", Statement::Boolean(true))));
+            assert_eq!(value("false"), Ok(("", Statement::Boolean(false))));
+            assert_eq!(value("null"), Ok(("", Statement::None)));
             assert_eq!(value("\"hello\""), Ok(("", Statement::String("hello".to_owned()))));
             assert_eq!(value("first.second"), Ok(("", Statement::Path(vec!["first".to_owned(), "second".to_owned()]))));
         }
-		
-		// #[test]
-		// fn test_condition() {
-        //     let cond = Condition {
-        //         left: Statement::Path(vec!["asdf".to_owned()]),
-        //         sign: "==".to_owned(),
-        //         right: Statement::String("hello".to_owned()),
-        //     };
-		// 	assert_eq!(condition("first==1"), Ok(("", cond)));
-        // }
-		
-		// #[test]
-		// fn test_query() {
-		// 	assert_eq!(query("first.second(third.fourth=1).third"), Ok(("", vec![])));
+        
+        #[test]
+        fn test_condition() {
+            let cond = Condition {
+                left: Statement::Path(vec!["asdf".to_owned()]),
+                sign: "==".to_owned(),
+                right: Statement::String("hello".to_owned()),
+            };
+            assert_eq!(condition("first==1"), Ok(("", cond)));
+        }
+        
+        // #[test]
+        // fn test_query() {
+        //     assert_eq!(query("first.second(third.fourth=1).third"), Ok(("", vec![])));
         // }
     }
 }
