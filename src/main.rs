@@ -1,6 +1,7 @@
 use yaml_rust::{YamlLoader, YamlEmitter, Yaml};
 use clap::Clap;
 use regex::Regex;
+use quyaml;
 
 // use std::io::prelude::*;
 // use std::io::{self, BufRead, Read};
