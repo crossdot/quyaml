@@ -81,7 +81,7 @@ pub(self) mod parsers {
     }
 
     #[allow(unused)]
-    pub fn integer(i: &str) -> nom::IResult<&str, &str> {
+    pub fn recognize_integer(i: &str) -> nom::IResult<&str, &str> {
         nom::combinator::recognize(
             nom::sequence::tuple((
                 nom::combinator::opt(
@@ -180,11 +180,11 @@ pub(self) mod parsers {
         }
 
         #[test]
-        fn test_integer() {
-            assert_eq!(integer("1234"), Ok(("", "1234")));
-            assert_eq!(integer("-1234"), Ok(("", "-1234")));
-            assert_eq!(integer("12E-1"), Ok(("", "12E-1")));
-            assert_eq!(integer("12E4"), Ok(("", "12E4")));
+        fn test_recognize_integer() {
+            assert_eq!(recognize_integer("1234"), Ok(("", "1234")));
+            assert_eq!(recognize_integer("-1234"), Ok(("", "-1234")));
+            assert_eq!(recognize_integer("12E-1"), Ok(("", "12E-1")));
+            assert_eq!(recognize_integer("12E4"), Ok(("", "12E4")));
         }
 
         #[test]
