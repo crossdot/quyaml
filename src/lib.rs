@@ -158,12 +158,21 @@ pub(self) mod parsers {
         
         #[test]
         fn test_condition() {
-            let cond = Condition {
+            assert_eq!(condition("true == null"), Ok(("", Condition {
                 left: Statement::Boolean(true),
                 sign: "==".to_owned(),
-                right: Statement::Boolean(true),
-            };
-            assert_eq!(condition("true == true"), Ok(("", cond)));
+                right: Statement::None,
+            })));
+            assert_eq!(condition("first == true"), Ok(("", Condition {
+                left: Statement::Path(vec!["first".to_owned(), "second".to_owned()]),
+                sign: "==".to_owned(),
+                right: Statement::None,
+            })));
+            assert_eq!(condition("first.second == null"), Ok(("", Condition {
+                left: Statement::Path(vec!["first".to_owned(), "second".to_owned()]),
+                sign: "==".to_owned(),
+                right: Statement::None,
+            })));
         }
         
         // #[test]
