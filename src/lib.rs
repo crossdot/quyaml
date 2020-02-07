@@ -49,9 +49,9 @@ pub(self) mod parsers {
         nom::multi::separated_list(
             nom::character::complete::char('.'),
             nom::bytes::complete::escaped_transform(
-                nom::bytes::complete::is_not("\\. "),
+                nom::bytes::complete::is_not("\\. \t=<>!"),
                 '\\',
-                nom::bytes::complete::is_a("\\. "),
+                nom::bytes::complete::is_a("\\. \t"),
             )
         )(i)
     }
@@ -163,12 +163,7 @@ pub(self) mod parsers {
                 sign: "==".to_owned(),
                 right: Statement::None,
             })));
-            assert_eq!(condition("first == true"), Ok(("", Condition {
-                left: Statement::Path(vec!["first".to_owned(), "second".to_owned()]),
-                sign: "==".to_owned(),
-                right: Statement::None,
-            })));
-            assert_eq!(condition("first.second == null"), Ok(("", Condition {
+            assert_eq!(condition("first.second==null"), Ok(("", Condition {
                 left: Statement::Path(vec!["first".to_owned(), "second".to_owned()]),
                 sign: "==".to_owned(),
                 right: Statement::None,
