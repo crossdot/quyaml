@@ -1,7 +1,7 @@
 #[derive(Clone, Default, Debug)]
 pub struct PathEntry {
-    pub key: String,
-    pub condition: String,
+    pub key: Option<String>,
+    pub condition: Option<String>,
 }
 
 #[derive(Clone, Default, Debug)]
@@ -88,6 +88,7 @@ pub(self) mod parsers {
 		#[test]
 		fn test_path() {
 			assert_eq!(path("first"), Ok(("", vec!["first"])));
+			assert_eq!(path("fir\\\\st"), Ok(("", vec!["fir\\\\st"])));
 			assert_eq!(path("first.second"), Ok(("", vec!["first", "second"])));
 			assert_eq!(path("first.sec\\.ond"), Ok(("", vec!["first", "sec\\.ond"])));
         }
@@ -95,6 +96,7 @@ pub(self) mod parsers {
 		#[test]
 		fn test_transform_path() {
 			assert_eq!(transform_path("first"), Ok(("", vec!["first".to_owned()])));
+			assert_eq!(transform_path("fir\\\\st"), Ok(("", vec!["fir\\st".to_owned()])));
 			assert_eq!(transform_path("first.second"), Ok(("", vec!["first".to_owned(), "second".to_owned()])));
 			assert_eq!(transform_path("first.sec\\.ond"), Ok(("", vec!["first".to_owned(), "sec.ond".to_owned()])));
         }
