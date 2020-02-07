@@ -152,7 +152,7 @@ pub(self) mod parsers {
             assert_eq!(value("false"), Ok(("", Statement::Boolean(false))));
             assert_eq!(value("null"), Ok(("", Statement::None)));
             assert_eq!(value("\"hello\""), Ok(("", Statement::String("hello".to_owned()))));
-            assert_eq!(value("first"), Ok(("", Statement::Path(vec!["first".to_owned()]))));
+            assert_eq!(value("first_underscored"), Ok(("", Statement::Path(vec!["first_underscored".to_owned()]))));
             assert_eq!(value("first.second"), Ok(("", Statement::Path(vec!["first".to_owned(), "second".to_owned()]))));
         }
         
