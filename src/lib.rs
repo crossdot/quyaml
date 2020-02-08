@@ -27,19 +27,19 @@ pub struct Query {
 }
 
 
-// #[derive(Default)]
-// pub struct ParseError;
-// impl std::fmt::Display for ParseError {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         write!(f, "A parsing error occurred.")
-//     }
-// }
-// impl std::fmt::Debug for ParseError {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         <ParseError as std::fmt::Display>::fmt(self, f)
-//     }
-// }
-// impl std::error::Error for ParseError { }
+#[derive(Default)]
+pub struct ParseError;
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "A parsing error occurred.")
+    }
+}
+impl std::fmt::Debug for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <ParseError as std::fmt::Display>::fmt(self, f)
+    }
+}
+impl std::error::Error for ParseError { }
 
 pub(self) mod parsers {
     use super::*;
@@ -90,26 +90,21 @@ pub(self) mod parsers {
                         nom::character::complete::char('-')
                     ))
                 ),
-                nom::character::complete::digit1,
-                nom::combinator::opt(
-                    nom::sequence::tuple((
-                        nom::branch::alt((
-                            nom::character::complete::char('e'),
-                            nom::character::complete::char('E')
-                        )),
-                        nom::combinator::opt(
-                            nom::branch::alt((
-                                nom::character::complete::char('+'),
-                                nom::character::complete::char('-'))
-                            )
-                        ),
-                        nom::combinator::cut(
-                            nom::character::complete::digit1
-                        )
-                    ))
-                )
+                nom::character::complete::digit1
             ))
         )(i)
+    }
+
+    pub fn integer(i: &str) -> nom::IResult<&str, i64> {
+        use nom::{IResult, Err, error::ErrorKind};
+
+        match recognize_integer(i) {
+            Ok((i, s)) => match s.parse() {
+                Ok(n) => Ok((i, n)),
+                Err(e) => Err(Err::Error((i, ErrorKind::Float))) // wrong type here
+            },
+            Err(e) => Err(e)
+        }
     }
 
     #[allow(unused)]
@@ -183,8 +178,12 @@ pub(self) mod parsers {
         fn test_recognize_integer() {
             assert_eq!(recognize_integer("1234"), Ok(("", "1234")));
             assert_eq!(recognize_integer("-1234"), Ok(("", "-1234")));
-            assert_eq!(recognize_integer("12E-1"), Ok(("", "12E-1")));
-            assert_eq!(recognize_integer("12E4"), Ok(("", "12E4")));
+        }
+
+        #[test]
+        fn test_integer() {
+            assert_eq!(integer("1234"), Ok(("", 1234)));
+            assert_eq!(integer("-1234"), Ok(("", -1234)));
         }
 
         #[test]
