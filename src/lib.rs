@@ -81,39 +81,18 @@ pub(self) mod parsers {
     }
 
     #[allow(unused)]
-    pub fn recognize_integer(i: &str) -> nom::IResult<&str, &str> {
-        nom::combinator::recognize(
-            nom::sequence::tuple((
-                nom::combinator::opt(
-                    nom::branch::alt((
-                        nom::character::complete::char('+'),
-                        nom::character::complete::char('-')
-                    ))
-                ),
-                nom::character::complete::digit1
-            ))
-        )(i)
-    }
-
-    pub fn integer(i: &str) -> nom::IResult<&str, i64> {
-        use nom::{IResult, Err, error::ErrorKind};
-
-        match recognize_integer(i) {
-            Ok((i, s)) => match s.parse() {
-                Ok(n) => Ok((i, n)),
-                Err(e) => Err(Err::Error((i, ErrorKind::Float))) // wrong type here
-            },
-            Err(e) => Err(e)
-        }
-    }
-
-    #[allow(unused)]
     fn value(i: &str) -> nom::IResult<&str, Statement> {
         nom::branch::alt((
             nom::combinator::map(nom::bytes::complete::tag("true"), |_| Statement::Boolean(true)),
             nom::combinator::map(nom::bytes::complete::tag("false"), |_| Statement::Boolean(false)),
             nom::combinator::map(nom::bytes::complete::tag("null"), |_| Statement::None),
-            nom::combinator::map(nom::number::complete::double, |v: f64| Statement::Double(v)),
+            nom::combinator::map(nom::number::complete::recognize_float, |s: &str| {
+                if s.contains(".") || s.contains("e") || s.contains("E") {
+                    Statement::Double(s.parse().unwrap())
+                } else {
+                    Statement::Integer(s.parse().unwrap())
+                }
+            }),
             nom::combinator::map(quoted_string, |s: &str| Statement::String(s.to_owned())),
             nom::combinator::map(unescaped_path, |path: Vec<String>| Statement::Path(path)),
         ))(i)
@@ -175,18 +154,6 @@ pub(self) mod parsers {
         }
 
         #[test]
-        fn test_recognize_integer() {
-            assert_eq!(recognize_integer("1234"), Ok(("", "1234")));
-            assert_eq!(recognize_integer("-1234"), Ok(("", "-1234")));
-        }
-
-        #[test]
-        fn test_integer() {
-            assert_eq!(integer("1234"), Ok(("", 1234)));
-            assert_eq!(integer("-1234"), Ok(("", -1234)));
-        }
-
-        #[test]
         fn test_value() {
             assert_eq!(value("true"), Ok(("", Statement::Boolean(true))));
             assert_eq!(value("false"), Ok(("", Statement::Boolean(false))));
@@ -194,6 +161,8 @@ pub(self) mod parsers {
             assert_eq!(value("\"hello\""), Ok(("", Statement::String("hello".to_owned()))));
             assert_eq!(value("first_underscored"), Ok(("", Statement::Path(vec!["first_underscored".to_owned()]))));
             assert_eq!(value("first.second"), Ok(("", Statement::Path(vec!["first".to_owned(), "second".to_owned()]))));
+            assert_eq!(value("10"), Ok(("", Statement::Integer(10))));
+            assert_eq!(value("-10"), Ok(("", Statement::Integer(-10))));
             assert_eq!(value("1.1"), Ok(("", Statement::Double(1.1))));
             assert_eq!(value("-1.1"), Ok(("", Statement::Double(-1.1))));
         }
@@ -209,6 +178,11 @@ pub(self) mod parsers {
                 left: Statement::Path(vec!["first".to_owned(), "second".to_owned()]),
                 sign: "==".to_owned(),
                 right: Statement::None,
+            })));
+            assert_eq!(condition("10==10.1"), Ok(("", Condition {
+                left: Statement::Integer(10),
+                sign: "==".to_owned(),
+                right: Statement::Double(10.1),
             })));
         }
         
