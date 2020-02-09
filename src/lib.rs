@@ -87,10 +87,10 @@ pub(self) mod parsers {
             nom::combinator::map(nom::bytes::complete::tag("false"), |_| Statement::Boolean(false)),
             nom::combinator::map(nom::bytes::complete::tag("null"), |_| Statement::None),
             nom::combinator::map(nom::number::complete::recognize_float, |s: &str| {
-                if s.contains(".") || s.contains("e") || s.contains("E") {
-                    Statement::Double(s.parse().unwrap())
-                } else {
+                if s.chars().all(|c| c.is_numeric() || c == '-') {
                     Statement::Integer(s.parse().unwrap())
+                } else {
+                    Statement::Double(s.parse().unwrap())
                 }
             }),
             nom::combinator::map(quoted_string, |s: &str| Statement::String(s.to_owned())),
