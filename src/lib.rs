@@ -67,9 +67,14 @@ pub(self) mod parsers {
         G: Fn(I) -> nom::IResult<I, O2, E>,
     {
         move |input: I| {
-            let (input, _) = nom::character::complete::space0(input)?;
-            let (input, o2) = sep(input)?;
-            nom::character::complete::space0(input).map(|(i, _)| (i, o2))
+            // let (input, _) = nom::character::complete::space0(input)?;
+            // let (input, o2) = sep(input)?;
+            // nom::character::complete::space0(input).map(|(i, _)| (i, o2))
+            nom::sequence::delimited(
+                nom::character::complete::space0,
+                &sep,
+                nom::character::complete::space0,
+            )(input)
         }
     }
 
