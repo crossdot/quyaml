@@ -10,6 +10,7 @@ pub enum ConditionListItem {
     Statement(Statement),
     Not,
     Relation(Relation),
+    Group(Vec<ConditionListItem>)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -170,18 +171,44 @@ pub(self) mod parsers {
         nom::combinator::map(
         nom::sequence::tuple((
             nom::multi::fold_many0(
-                nom::sequence::tuple((boolean, relation)),
+                nom::sequence::tuple((
+                    nom::branch::alt((
+                        nom::combinator::map(boolean, |v| ConditionListItem::Statement(Statement::Boolean(v))),
+                        nom::combinator::map(
+                            nom::sequence::delimited(
+                                nom::bytes::complete::tag("("),
+                                condition_list,
+                                nom::bytes::complete::tag(")")
+                            ),
+                            |g| ConditionListItem::Group(g)
+                        ),
+                    )),
+                    nom::combinator::map(relation, |v| ConditionListItem::Relation(v))
+                )),
                 list,
-                |mut acc: Vec<_>, (b, rel)| {
-                    acc.push(ConditionListItem::Statement(Statement::Boolean(b)));
-                    acc.push(ConditionListItem::Relation(rel));
+                |mut acc: Vec<_>, (st, rel)| {
+                    acc.push(st);
+                    acc.push(rel);
                     acc
                 }
             ),
-            boolean
+            nom::branch::alt((
+                nom::combinator::map(boolean, |v| ConditionListItem::Statement(Statement::Boolean(v))),
+                nom::branch::alt((
+                    nom::combinator::map(boolean, |v| ConditionListItem::Statement(Statement::Boolean(v))),
+                    nom::combinator::map(
+                        nom::sequence::delimited(
+                            nom::bytes::complete::tag("("),
+                            condition_list,
+                            nom::bytes::complete::tag(")")
+                        ),
+                        |g| ConditionListItem::Group(g)
+                    ),
+                )),
+            ))
         )),
-        |(mut acc, b)| {
-            acc.push(ConditionListItem::Statement(Statement::Boolean(b)));
+        |(mut acc, st)| {
+            acc.push(st);
             acc
         }
         )
@@ -243,11 +270,29 @@ pub(self) mod parsers {
         
         #[test]
         fn test_condition_list() {
+            assert_eq!(condition_list("false"), Ok(("", 
+                vec![
+                    ConditionListItem::Statement(Statement::Boolean(false)),
+                ]
+            )));
             assert_eq!(condition_list("false||true&&false"), Ok(("", 
                 vec![
                     ConditionListItem::Statement(Statement::Boolean(false)),
                     ConditionListItem::Relation(Relation::Or),
                     ConditionListItem::Statement(Statement::Boolean(true)),
+                    ConditionListItem::Relation(Relation::And),
+                    ConditionListItem::Statement(Statement::Boolean(false)),
+                ]
+            )));
+            assert_eq!(condition_list("(false||true)&&false"), Ok(("", 
+                vec![
+                    ConditionListItem::Group(
+                        vec![
+                            ConditionListItem::Statement(Statement::Boolean(false)),
+                            ConditionListItem::Relation(Relation::Or),
+                            ConditionListItem::Statement(Statement::Boolean(true)),
+                        ]
+                    ),
                     ConditionListItem::Relation(Relation::And),
                     ConditionListItem::Statement(Statement::Boolean(false)),
                 ]
