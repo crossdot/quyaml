@@ -94,30 +94,26 @@ pub(self) mod parsers {
 
     #[allow(unused)]
     fn quoted_string(i: &str) -> nom::IResult<&str, &str> {
-        nom::sequence::delimited(
-            nom::character::complete::space0,
-            nom::branch::alt((
-                nom::sequence::delimited(
-                    nom::bytes::complete::tag("\""),
-                    nom::bytes::complete::escaped(
-                        nom::bytes::complete::is_not("\\\""),
-                        '\\',
-                        nom::bytes::complete::is_a("\\\""),
-                    ),
-                    nom::bytes::complete::tag("\"")
+        nom::branch::alt((
+            nom::sequence::delimited(
+                nom::bytes::complete::tag("\""),
+                nom::bytes::complete::escaped(
+                    nom::bytes::complete::is_not("\\\""),
+                    '\\',
+                    nom::bytes::complete::is_a("\\\""),
                 ),
-                nom::sequence::delimited(
-                    nom::bytes::complete::tag("'"),
-                    nom::bytes::complete::escaped(
-                        nom::bytes::complete::is_not("\\'"),
-                        '\\',
-                        nom::bytes::complete::is_a("\\'"),
-                    ),
-                    nom::bytes::complete::tag("'")
+                nom::bytes::complete::tag("\"")
+            ),
+            nom::sequence::delimited(
+                nom::bytes::complete::tag("'"),
+                nom::bytes::complete::escaped(
+                    nom::bytes::complete::is_not("\\'"),
+                    '\\',
+                    nom::bytes::complete::is_a("\\'"),
                 ),
-            )),
-            nom::character::complete::space0,
-        )(i)
+                nom::bytes::complete::tag("'")
+            ),
+        ))(i)
     }
 
     #[allow(unused)]
@@ -130,70 +126,74 @@ pub(self) mod parsers {
 
     #[allow(unused)]
     fn value(i: &str) -> nom::IResult<&str, Statement> {
-        nom::branch::alt((
-            nom::combinator::map(boolean, |v| Statement::Boolean(v)),
-            nom::combinator::map(nom::bytes::complete::tag("false"), |_| Statement::Boolean(false)),
-            nom::combinator::map(nom::bytes::complete::tag("null"), |_| Statement::None),
-            nom::combinator::map(nom::number::complete::recognize_float, |s: &str| {
-                if s.chars().all(|c| c.is_numeric() || c == '-') {
-                    Statement::Integer(s.parse().unwrap())
-                } else {
-                    Statement::Double(s.parse().unwrap())
-                }
-            }),
-            nom::combinator::map(quoted_string, |s: &str| Statement::String(s.to_owned())),
-            nom::combinator::map(unescaped_path, |path: Vec<String>| Statement::Path(path)),
-        ))(i)
+        trim(
+            nom::branch::alt((
+                nom::combinator::map(boolean, |v| Statement::Boolean(v)),
+                nom::combinator::map(nom::bytes::complete::tag("false"), |_| Statement::Boolean(false)),
+                nom::combinator::map(nom::bytes::complete::tag("null"), |_| Statement::None),
+                nom::combinator::map(nom::number::complete::recognize_float, |s: &str| {
+                    if s.chars().all(|c| c.is_numeric() || c == '-') {
+                        Statement::Integer(s.parse().unwrap())
+                    } else {
+                        Statement::Double(s.parse().unwrap())
+                    }
+                }),
+                nom::combinator::map(quoted_string, |s: &str| Statement::String(s.to_owned())),
+                nom::combinator::map(unescaped_path, |path: Vec<String>| Statement::Path(path)),
+            ))
+        )(i)
     }
 
     #[allow(unused)]
     fn condition(i: &str) -> nom::IResult<&str, Condition> {
-        nom::combinator::map(
-            nom::sequence::tuple((
-                nom::character::complete::space0,
-                value,
-                nom::character::complete::space0,
-                nom::branch::alt((
-                    nom::bytes::complete::tag("=="),
-                    nom::bytes::complete::tag("!="),
-                    nom::bytes::complete::tag(">"),
-                    nom::bytes::complete::tag("<"),
+        trim(
+            nom::combinator::map(
+                nom::sequence::tuple((
+                    value,
+                    nom::branch::alt((
+                        nom::bytes::complete::tag("=="),
+                        nom::bytes::complete::tag("!="),
+                        nom::bytes::complete::tag(">"),
+                        nom::bytes::complete::tag("<"),
+                    )),
+                    value,
                 )),
-                nom::character::complete::space0,
-                value,
-                nom::character::complete::space0,
-            )),
-            |(_, left, _, relation, _, right, _)| Condition {
-                left: left,
-                sign: relation.to_owned(),
-                right: right,
-            }
+                |(left, relation, right)| Condition {
+                    left: left,
+                    sign: relation.to_owned(),
+                    right: right,
+                }
+            )
         )(i)
     }
 
     #[allow(unused)]
     fn relation(i: &str) -> nom::IResult<&str, Relation> {
-        nom::branch::alt((
-            nom::combinator::map(nom::bytes::complete::tag("||"), |_| Relation::Or),
-            nom::combinator::map(nom::bytes::complete::tag("&&"), |_| Relation::And),
-            nom::combinator::map(nom::bytes::complete::tag("^"), |_| Relation::Xor),
-        ))(i)
+        trim(
+            nom::branch::alt((
+                nom::combinator::map(nom::bytes::complete::tag("||"), |_| Relation::Or),
+                nom::combinator::map(nom::bytes::complete::tag("&&"), |_| Relation::And),
+                nom::combinator::map(nom::bytes::complete::tag("^"), |_| Relation::Xor),
+            ))
+        )(i)
     }
 
     #[allow(unused)]
     fn condition_list_item(i: &str) -> nom::IResult<&str, ConditionListItem> {
-        nom::branch::alt((
-            nom::combinator::map(
-                nom::sequence::delimited(
-                    nom::bytes::complete::tag("("),
-                    condition_list,
-                    nom::bytes::complete::tag(")")
+        trim(
+            nom::branch::alt((
+                nom::combinator::map(
+                    nom::sequence::delimited(
+                        nom::bytes::complete::tag("("),
+                        condition_list,
+                        nom::bytes::complete::tag(")")
+                    ),
+                    |g| ConditionListItem::Group(g)
                 ),
-                |g| ConditionListItem::Group(g)
-            ),
-            nom::combinator::map(condition, |st| ConditionListItem::Condition(st)),
-            nom::combinator::map(value, |v| ConditionListItem::Statement(v)),
-        ))(i)
+                nom::combinator::map(condition, |st| ConditionListItem::Condition(st)),
+                nom::combinator::map(value, |v| ConditionListItem::Statement(v)),
+            ))
+        )(i)
     }
 
     #[allow(unused)]
@@ -319,7 +319,7 @@ pub(self) mod parsers {
                     ])
                 ]
             )));
-            assert_eq!(condition_list("first.value&&(false||true)"), Ok(("", 
+            assert_eq!(condition_list("first.value && (false || true)"), Ok(("", 
                 vec![
                     ConditionListItem::Statement(Statement::Path(vec![
                         "first".to_owned(),
