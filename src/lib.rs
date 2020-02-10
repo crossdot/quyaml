@@ -129,7 +129,6 @@ pub(self) mod parsers {
         trim(
             nom::branch::alt((
                 nom::combinator::map(boolean, |v| Statement::Boolean(v)),
-                nom::combinator::map(nom::bytes::complete::tag("false"), |_| Statement::Boolean(false)),
                 nom::combinator::map(nom::bytes::complete::tag("null"), |_| Statement::None),
                 nom::combinator::map(nom::number::complete::recognize_float, |s: &str| {
                     if s.chars().all(|c| c.is_numeric() || c == '-') {
@@ -319,7 +318,7 @@ pub(self) mod parsers {
                     ])
                 ]
             )));
-            assert_eq!(condition_list("first.value && (false || true)"), Ok(("", 
+            assert_eq!(condition_list("first.value && (false || true != false)"), Ok(("", 
                 vec![
                     ConditionListItem::Statement(Statement::Path(vec![
                         "first".to_owned(),
@@ -330,7 +329,11 @@ pub(self) mod parsers {
                         vec![
                             ConditionListItem::Statement(Statement::Boolean(false)),
                             ConditionListItem::Relation(Relation::Or),
-                            ConditionListItem::Statement(Statement::Boolean(true)),
+                            ConditionListItem::Condition(Condition {
+                                left: Statement::Boolean(true),
+                                sign: "!=".to_owned(),
+                                right: Statement::Boolean(false),
+                            }),
                         ]
                     ),
                 ]
