@@ -194,17 +194,14 @@ pub(self) mod parsers {
             ),
             nom::branch::alt((
                 nom::combinator::map(boolean, |v| ConditionListItem::Statement(Statement::Boolean(v))),
-                nom::branch::alt((
-                    nom::combinator::map(boolean, |v| ConditionListItem::Statement(Statement::Boolean(v))),
-                    nom::combinator::map(
-                        nom::sequence::delimited(
-                            nom::bytes::complete::tag("("),
-                            condition_list,
-                            nom::bytes::complete::tag(")")
-                        ),
-                        |g| ConditionListItem::Group(g)
+                nom::combinator::map(
+                    nom::sequence::delimited(
+                        nom::bytes::complete::tag("("),
+                        condition_list,
+                        nom::bytes::complete::tag(")")
                     ),
-                )),
+                    |g| ConditionListItem::Group(g)
+                ),
             ))
         )),
         |(mut acc, st)| {
