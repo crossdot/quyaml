@@ -60,40 +60,59 @@ impl std::error::Error for ParseError { }
 pub(self) mod parsers {
     use super::*;
 
+    pub fn trim<I, O2, E: nom::error::ParseError<I>, G>(sep: G) -> impl Fn(I) -> nom::IResult<I, O2, E>
+    where
+        I: nom::InputTakeAtPosition,
+        <I as nom::InputTakeAtPosition>::Item: nom::AsChar + Clone,
+        G: Fn(I) -> nom::IResult<I, O2, E>,
+    {
+        move |input: I| {
+            let (input, _) = nom::character::complete::space0(input)?;
+            let (input, o2) = sep(input)?;
+            nom::character::complete::space0(input).map(|(i, _)| (i, o2))
+        }
+    }
+
     #[allow(unused)]
     fn unescaped_path(i: &str) -> nom::IResult<&str, Vec<String>> {
-        nom::multi::separated_nonempty_list(
-            nom::character::complete::char('.'),
-            nom::bytes::complete::escaped_transform(
-                nom::bytes::complete::is_not("\\. \t=<>!&|^()"),
-                '\\',
-                nom::bytes::complete::is_a("\\. \t()"),
+        trim(
+            nom::multi::separated_nonempty_list(
+                nom::character::complete::char('.'),
+                nom::bytes::complete::escaped_transform(
+                    nom::bytes::complete::is_not("\\. \t=<>!&|^()"),
+                    '\\',
+                    nom::bytes::complete::is_a("\\. \t()"),
+                )
             )
         )(i)
     }
 
     #[allow(unused)]
     fn quoted_string(i: &str) -> nom::IResult<&str, &str> {
-        nom::branch::alt((
-            nom::sequence::delimited(
-                nom::bytes::complete::tag("\""),
-                nom::bytes::complete::escaped(
-                    nom::bytes::complete::is_not("\\\""),
-                    '\\',
-                    nom::bytes::complete::is_a("\\\""),
+        nom::sequence::delimited(
+            nom::character::complete::space0,
+            nom::branch::alt((
+                nom::sequence::delimited(
+                    nom::bytes::complete::tag("\""),
+                    nom::bytes::complete::escaped(
+                        nom::bytes::complete::is_not("\\\""),
+                        '\\',
+                        nom::bytes::complete::is_a("\\\""),
+                    ),
+                    nom::bytes::complete::tag("\"")
                 ),
-                nom::bytes::complete::tag("\"")
-            ),
-            nom::sequence::delimited(
-                nom::bytes::complete::tag("'"),
-                nom::bytes::complete::escaped(
-                    nom::bytes::complete::is_not("\\'"),
-                    '\\',
-                    nom::bytes::complete::is_a("\\'"),
+                nom::sequence::delimited(
+                    nom::bytes::complete::tag("'"),
+                    nom::bytes::complete::escaped(
+                        nom::bytes::complete::is_not("\\'"),
+                        '\\',
+                        nom::bytes::complete::is_a("\\'"),
+                    ),
+                    nom::bytes::complete::tag("'")
                 ),
-                nom::bytes::complete::tag("'")
-            ),
-        ))(i)
+            )),
+            nom::character::complete::space0,
+        )(i)
     }
 
     #[allow(unused)]
