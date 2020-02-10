@@ -173,7 +173,6 @@ pub(self) mod parsers {
             nom::multi::fold_many0(
                 nom::sequence::tuple((
                     nom::branch::alt((
-                        nom::combinator::map(boolean, |v| ConditionListItem::Statement(Statement::Boolean(v))),
                         nom::combinator::map(
                             nom::sequence::delimited(
                                 nom::bytes::complete::tag("("),
@@ -182,6 +181,7 @@ pub(self) mod parsers {
                             ),
                             |g| ConditionListItem::Group(g)
                         ),
+                        nom::combinator::map(value, |st| ConditionListItem::Statement(st)),
                     )),
                     nom::combinator::map(relation, |v| ConditionListItem::Relation(v))
                 )),
@@ -193,7 +193,6 @@ pub(self) mod parsers {
                 }
             ),
             nom::branch::alt((
-                nom::combinator::map(boolean, |v| ConditionListItem::Statement(Statement::Boolean(v))),
                 nom::combinator::map(
                     nom::sequence::delimited(
                         nom::bytes::complete::tag("("),
@@ -202,6 +201,7 @@ pub(self) mod parsers {
                     ),
                     |g| ConditionListItem::Group(g)
                 ),
+                nom::combinator::map(value, |st| ConditionListItem::Statement(st)),
             ))
         )),
         |(mut acc, st)| {
