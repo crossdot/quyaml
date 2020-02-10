@@ -62,12 +62,12 @@ pub(self) mod parsers {
 
     #[allow(unused)]
     fn unescaped_path(i: &str) -> nom::IResult<&str, Vec<String>> {
-        nom::multi::separated_list(
+        nom::multi::separated_nonempty_list(
             nom::character::complete::char('.'),
             nom::bytes::complete::escaped_transform(
-                nom::bytes::complete::is_not("\\. \t=<>!&|^"),
+                nom::bytes::complete::is_not("\\. \t=<>!&|^()"),
                 '\\',
-                nom::bytes::complete::is_a("\\. \t"),
+                nom::bytes::complete::is_a("\\. \t()"),
             )
         )(i)
     }
@@ -124,37 +124,28 @@ pub(self) mod parsers {
 
     #[allow(unused)]
     fn condition(i: &str) -> nom::IResult<&str, Condition> {
-        match nom::combinator::all_consuming(nom::sequence::tuple((
-            nom::character::complete::space0,
-            value,
-            nom::character::complete::space0,
-            nom::branch::alt((
-                nom::bytes::complete::tag("=="),
-                nom::bytes::complete::tag("!="),
-                nom::bytes::complete::tag(">"),
-                nom::bytes::complete::tag("<"),
+        dbg!(i);
+        nom::combinator::map(
+            nom::sequence::tuple((
+                nom::character::complete::space0,
+                value,
+                nom::character::complete::space0,
+                nom::branch::alt((
+                    nom::bytes::complete::tag("=="),
+                    nom::bytes::complete::tag("!="),
+                    nom::bytes::complete::tag(">"),
+                    nom::bytes::complete::tag("<"),
+                )),
+                nom::character::complete::space0,
+                value,
+                nom::character::complete::space0,
             )),
-            nom::character::complete::space0,
-            value,
-            nom::character::complete::space0,
-        )))(i) {
-            Ok((remaining_input, (
-                _,
-                left,
-                _,
-                relation,
-                _,
-                right,
-                _,
-            ))) => {
-                Ok((remaining_input, Condition {
-                    left: left,
-                    sign: relation.to_owned(),
-                    right: right,
-                }))
+            |(_, left, _, relation, _, right, _)| Condition {
+                left: left,
+                sign: relation.to_owned(),
+                right: right,
             }
-            Err(e) => Err(e)
-        }
+        )(i)
     }
 
     #[allow(unused)]
@@ -162,7 +153,7 @@ pub(self) mod parsers {
         nom::branch::alt((
             nom::combinator::map(nom::bytes::complete::tag("||"), |_| Relation::Or),
             nom::combinator::map(nom::bytes::complete::tag("&&"), |_| Relation::And),
-            nom::combinator::map(nom::bytes::complete::tag("^"), |_| Relation::And),
+            nom::combinator::map(nom::bytes::complete::tag("^"), |_| Relation::Xor),
         ))(i)
     }
 
@@ -177,7 +168,8 @@ pub(self) mod parsers {
                 ),
                 |g| ConditionListItem::Group(g)
             ),
-            nom::combinator::map(value, |st| ConditionListItem::Statement(st)),
+            nom::combinator::map(condition, |st| ConditionListItem::Condition(st)),
+            nom::combinator::map(value, |v| ConditionListItem::Statement(v)),
         ))(i)
     }
 
@@ -218,6 +210,7 @@ pub(self) mod parsers {
             assert_eq!(unescaped_path("fir\\\\st"), Ok(("", vec!["fir\\st".to_owned()])));
             assert_eq!(unescaped_path("first.second"), Ok(("", vec!["first".to_owned(), "second".to_owned()])));
             assert_eq!(unescaped_path("first.sec\\.ond"), Ok(("", vec!["first".to_owned(), "sec.ond".to_owned()])));
+            assert_eq!(unescaped_path(""), Err(nom::Err::Error(("", nom::error::ErrorKind::SeparatedList))));
         }
 
         #[test]
@@ -290,31 +283,33 @@ pub(self) mod parsers {
                     ConditionListItem::Statement(Statement::Boolean(false)),
                 ]
             )));
-            assert_eq!(condition_list("first.value&&(false||true)"), Ok(("", 
+            assert_eq!(condition_list("(true==false)"), Ok(("",
                 vec![
-                    ConditionListItem::Statement(Statement::Path(vec![
-                        "first".to_owned(),
-                        "value".to_owned(),
-                    ])),
-                    ConditionListItem::Relation(Relation::And),
-                    ConditionListItem::Group(
-                        vec![
-                            ConditionListItem::Statement(Statement::Boolean(false)),
-                            ConditionListItem::Relation(Relation::Or),
-                            ConditionListItem::Statement(Statement::Boolean(true)),
-                        ]
-                    ),
+                    ConditionListItem::Group(vec![
+                        ConditionListItem::Condition(Condition {
+                            left: Statement::Boolean(true),
+                            sign: "==".to_owned(),
+                            right: Statement::Boolean(false)
+                        })
+                    ])
                 ]
             )));
-            // assert_eq!(condition_list("true==false"), Ok(("", 
-            //     vec![
-            //         ConditionListItem::Condition(Condition{
-            //             left: Statement::Boolean(true),
-            //             sign: "==".to_owned(),
-            //             right: Statement::Boolean(false),
-            //         })
-            //     ]
-            // )));
+        //     assert_eq!(condition_list("first.value&&(false||true)"), Ok(("", 
+        //         vec![
+        //             ConditionListItem::Statement(Statement::Path(vec![
+        //                 "first".to_owned(),
+        //                 "value".to_owned(),
+        //             ])),
+        //             ConditionListItem::Relation(Relation::And),
+        //             ConditionListItem::Group(
+        //                 vec![
+        //                     ConditionListItem::Statement(Statement::Boolean(false)),
+        //                     ConditionListItem::Relation(Relation::Or),
+        //                     ConditionListItem::Statement(Statement::Boolean(true)),
+        //                 ]
+        //             ),
+        //         ]
+        //     )));
         }
         
         // #[test]
