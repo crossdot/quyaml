@@ -64,7 +64,7 @@ pub(self) mod parsers {
         nom::multi::separated_list(
             nom::character::complete::char('.'),
             nom::bytes::complete::escaped_transform(
-                nom::bytes::complete::is_not("\\. \t=<>!"),
+                nom::bytes::complete::is_not("\\. \t=<>!&|^"),
                 '\\',
                 nom::bytes::complete::is_a("\\. \t"),
             )
@@ -292,6 +292,22 @@ pub(self) mod parsers {
                     ),
                     ConditionListItem::Relation(Relation::And),
                     ConditionListItem::Statement(Statement::Boolean(false)),
+                ]
+            )));
+            assert_eq!(condition_list("first.value&&(false||true)"), Ok(("", 
+                vec![
+                    ConditionListItem::Statement(Statement::Path(vec![
+                        "first".to_owned(),
+                        "value".to_owned(),
+                    ])),
+                    ConditionListItem::Relation(Relation::And),
+                    ConditionListItem::Group(
+                        vec![
+                            ConditionListItem::Statement(Statement::Boolean(false)),
+                            ConditionListItem::Relation(Relation::Or),
+                            ConditionListItem::Statement(Statement::Boolean(true)),
+                        ]
+                    ),
                 ]
             )));
         }
