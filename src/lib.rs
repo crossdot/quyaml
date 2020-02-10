@@ -124,7 +124,6 @@ pub(self) mod parsers {
 
     #[allow(unused)]
     fn condition(i: &str) -> nom::IResult<&str, Condition> {
-        dbg!(i);
         nom::combinator::map(
             nom::sequence::tuple((
                 nom::character::complete::space0,
@@ -283,8 +282,10 @@ pub(self) mod parsers {
                     ConditionListItem::Statement(Statement::Boolean(false)),
                 ]
             )));
-            assert_eq!(condition_list("(true==false)"), Ok(("",
+            assert_eq!(condition_list("first&&(true==false)"), Ok(("",
                 vec![
+                    ConditionListItem::Statement(Statement::Path(vec!["first".to_owned()])),
+                    ConditionListItem::Relation(Relation::And),
                     ConditionListItem::Group(vec![
                         ConditionListItem::Condition(Condition {
                             left: Statement::Boolean(true),
