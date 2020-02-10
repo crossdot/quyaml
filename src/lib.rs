@@ -295,22 +295,22 @@ pub(self) mod parsers {
                     ])
                 ]
             )));
-        //     assert_eq!(condition_list("first.value&&(false||true)"), Ok(("", 
-        //         vec![
-        //             ConditionListItem::Statement(Statement::Path(vec![
-        //                 "first".to_owned(),
-        //                 "value".to_owned(),
-        //             ])),
-        //             ConditionListItem::Relation(Relation::And),
-        //             ConditionListItem::Group(
-        //                 vec![
-        //                     ConditionListItem::Statement(Statement::Boolean(false)),
-        //                     ConditionListItem::Relation(Relation::Or),
-        //                     ConditionListItem::Statement(Statement::Boolean(true)),
-        //                 ]
-        //             ),
-        //         ]
-        //     )));
+            assert_eq!(condition_list("first.value&&(false||true)"), Ok(("", 
+                vec![
+                    ConditionListItem::Statement(Statement::Path(vec![
+                        "first".to_owned(),
+                        "value".to_owned(),
+                    ])),
+                    ConditionListItem::Relation(Relation::And),
+                    ConditionListItem::Group(
+                        vec![
+                            ConditionListItem::Statement(Statement::Boolean(false)),
+                            ConditionListItem::Relation(Relation::Or),
+                            ConditionListItem::Statement(Statement::Boolean(true)),
+                        ]
+                    ),
+                ]
+            )));
         }
         
         // #[test]
