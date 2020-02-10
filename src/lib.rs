@@ -167,30 +167,25 @@ pub(self) mod parsers {
     #[allow(unused)]
     fn condition_list(i: &str) -> nom::IResult<&str, Vec<ConditionListItem>> {
         let mut list = Vec::new();
-        match nom::combinator::all_consuming(nom::sequence::tuple((
-            boolean,
+        nom::combinator::map(
+        nom::sequence::tuple((
             nom::multi::fold_many0(
-                nom::combinator::all_consuming(nom::sequence::tuple((
-                    relation,
-                    boolean,
-                ))),
+                nom::sequence::tuple((boolean, relation)),
                 list,
-                |mut acc: Vec<_>, (rel, b)| {
-                    acc.push(ConditionListItem::Relation(rel));
+                |mut acc: Vec<_>, (b, rel)| {
                     acc.push(ConditionListItem::Statement(Statement::Boolean(b)));
+                    acc.push(ConditionListItem::Relation(rel));
                     acc
                 }
-            )
-        )))(i) {
-            Ok((remaining_input, (
-                v,
-                mut list,
-            ))) => {
-                list.insert(0, ConditionListItem::Statement(Statement::Boolean(v)));
-                Ok((remaining_input, list))
-            }
-            Err(e) => Err(e)
+            ),
+            boolean
+        )),
+        |(mut acc, b)| {
+            acc.push(ConditionListItem::Statement(Statement::Boolean(b)));
+            acc
         }
+        )
+        (i)
     }
 
     #[cfg(test)]
@@ -248,11 +243,13 @@ pub(self) mod parsers {
         
         #[test]
         fn test_condition_list() {
-            assert_eq!(condition_list("false||true"), Ok(("", 
+            assert_eq!(condition_list("false||true&&false"), Ok(("", 
                 vec![
                     ConditionListItem::Statement(Statement::Boolean(false)),
                     ConditionListItem::Relation(Relation::Or),
                     ConditionListItem::Statement(Statement::Boolean(true)),
+                    ConditionListItem::Relation(Relation::And),
+                    ConditionListItem::Statement(Statement::Boolean(false)),
                 ]
             )));
         }
