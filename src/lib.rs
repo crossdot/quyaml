@@ -1,4 +1,18 @@
 #[derive(Clone, Debug, PartialEq)]
+pub enum Relation {
+    Or,
+    And,
+    Xor,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ConditionListItem {
+    Statement(Statement),
+    Not,
+    Relation(Relation),
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Statement {
     Boolean(bool),
     Integer(i64),
@@ -81,9 +95,17 @@ pub(self) mod parsers {
     }
 
     #[allow(unused)]
+    fn boolean(i: &str) -> nom::IResult<&str, bool> {
+        nom::branch::alt((
+            nom::combinator::map(nom::bytes::complete::tag("true"), |_| true),
+            nom::combinator::map(nom::bytes::complete::tag("false"), |_| false),
+        ))(i)
+    }
+
+    #[allow(unused)]
     fn value(i: &str) -> nom::IResult<&str, Statement> {
         nom::branch::alt((
-            nom::combinator::map(nom::bytes::complete::tag("true"), |_| Statement::Boolean(true)),
+            nom::combinator::map(boolean, |v| Statement::Boolean(v)),
             nom::combinator::map(nom::bytes::complete::tag("false"), |_| Statement::Boolean(false)),
             nom::combinator::map(nom::bytes::complete::tag("null"), |_| Statement::None),
             nom::combinator::map(nom::number::complete::recognize_float, |s: &str| {
@@ -128,6 +150,44 @@ pub(self) mod parsers {
                     sign: relation.to_owned(),
                     right: right,
                 }))
+            }
+            Err(e) => Err(e)
+        }
+    }
+
+    #[allow(unused)]
+    fn relation(i: &str) -> nom::IResult<&str, Relation> {
+        nom::branch::alt((
+            nom::combinator::map(nom::bytes::complete::tag("||"), |_| Relation::Or),
+            nom::combinator::map(nom::bytes::complete::tag("&&"), |_| Relation::And),
+            nom::combinator::map(nom::bytes::complete::tag("^"), |_| Relation::And),
+        ))(i)
+    }
+
+    #[allow(unused)]
+    fn condition_list(i: &str) -> nom::IResult<&str, Vec<ConditionListItem>> {
+        let mut list = Vec::new();
+        match nom::combinator::all_consuming(nom::sequence::tuple((
+            boolean,
+            nom::multi::fold_many0(
+                nom::combinator::all_consuming(nom::sequence::tuple((
+                    relation,
+                    boolean,
+                ))),
+                list,
+                |mut acc: Vec<_>, (rel, b)| {
+                    acc.push(ConditionListItem::Relation(rel));
+                    acc.push(ConditionListItem::Statement(Statement::Boolean(b)));
+                    acc
+                }
+            )
+        )))(i) {
+            Ok((remaining_input, (
+                v,
+                mut list,
+            ))) => {
+                list.insert(0, ConditionListItem::Statement(Statement::Boolean(v)));
+                Ok((remaining_input, list))
             }
             Err(e) => Err(e)
         }
@@ -184,6 +244,17 @@ pub(self) mod parsers {
                 sign: "==".to_owned(),
                 right: Statement::Double(10.1),
             })));
+        }
+        
+        #[test]
+        fn test_condition_list() {
+            assert_eq!(condition_list("false||true"), Ok(("", 
+                vec![
+                    ConditionListItem::Statement(Statement::Boolean(false)),
+                    ConditionListItem::Relation(Relation::Or),
+                    ConditionListItem::Statement(Statement::Boolean(true)),
+                ]
+            )));
         }
         
         // #[test]
