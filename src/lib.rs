@@ -7,6 +7,7 @@ pub enum Relation {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ConditionListItem {
+    Condition(Condition),
     Statement(Statement),
     Not,
     Relation(Relation),
@@ -166,48 +167,43 @@ pub(self) mod parsers {
     }
 
     #[allow(unused)]
+    fn condition_list_item(i: &str) -> nom::IResult<&str, ConditionListItem> {
+        nom::branch::alt((
+            nom::combinator::map(
+                nom::sequence::delimited(
+                    nom::bytes::complete::tag("("),
+                    condition_list,
+                    nom::bytes::complete::tag(")")
+                ),
+                |g| ConditionListItem::Group(g)
+            ),
+            nom::combinator::map(value, |st| ConditionListItem::Statement(st)),
+        ))(i)
+    }
+
+    #[allow(unused)]
     fn condition_list(i: &str) -> nom::IResult<&str, Vec<ConditionListItem>> {
         let mut list = Vec::new();
         nom::combinator::map(
-        nom::sequence::tuple((
-            nom::multi::fold_many0(
-                nom::sequence::tuple((
-                    nom::branch::alt((
-                        nom::combinator::map(
-                            nom::sequence::delimited(
-                                nom::bytes::complete::tag("("),
-                                condition_list,
-                                nom::bytes::complete::tag(")")
-                            ),
-                            |g| ConditionListItem::Group(g)
-                        ),
-                        nom::combinator::map(value, |st| ConditionListItem::Statement(st)),
+            nom::sequence::tuple((
+                nom::multi::fold_many0(
+                    nom::sequence::tuple((
+                        condition_list_item,
+                        nom::combinator::map(relation, |v| ConditionListItem::Relation(v))
                     )),
-                    nom::combinator::map(relation, |v| ConditionListItem::Relation(v))
-                )),
-                list,
-                |mut acc: Vec<_>, (st, rel)| {
-                    acc.push(st);
-                    acc.push(rel);
-                    acc
-                }
-            ),
-            nom::branch::alt((
-                nom::combinator::map(
-                    nom::sequence::delimited(
-                        nom::bytes::complete::tag("("),
-                        condition_list,
-                        nom::bytes::complete::tag(")")
-                    ),
-                    |g| ConditionListItem::Group(g)
+                    list,
+                    |mut acc: Vec<_>, (st, rel)| {
+                        acc.push(st);
+                        acc.push(rel);
+                        acc
+                    }
                 ),
-                nom::combinator::map(value, |st| ConditionListItem::Statement(st)),
-            ))
-        )),
-        |(mut acc, st)| {
-            acc.push(st);
-            acc
-        }
+                condition_list_item
+            )),
+            |(mut acc, st)| {
+                acc.push(st);
+                acc
+            }
         )
         (i)
     }
@@ -310,6 +306,15 @@ pub(self) mod parsers {
                     ),
                 ]
             )));
+            // assert_eq!(condition_list("true==false"), Ok(("", 
+            //     vec![
+            //         ConditionListItem::Condition(Condition{
+            //             left: Statement::Boolean(true),
+            //             sign: "==".to_owned(),
+            //             right: Statement::Boolean(false),
+            //         })
+            //     ]
+            // )));
         }
         
         // #[test]
