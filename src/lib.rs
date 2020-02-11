@@ -390,11 +390,11 @@ pub(self) mod parsers {
                     path: vec!["first".to_owned(), "second".to_owned()]
                 }
             )));
-            assert_eq!(query("first.second(aaa==1)"), Ok(("", 
+            assert_eq!(query("first.second(aaa.bbb==1)"), Ok(("", 
                 Query { 
                     path: vec![
                         "first".to_owned(),
-                        "second(aaa==1)".to_owned(),
+                        "second(aaa.bbb==1)".to_owned(),
                     ] 
                 }
             )));
