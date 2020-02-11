@@ -34,12 +34,12 @@ pub struct Condition {
 #[derive(Clone, Debug, PartialEq)]
 pub struct PathEntry {
     pub key: Option<String>,
-    pub condition: Option<Condition>,
+    pub condition: Option<Vec<ConditionListItem>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Query {
-    pub path: Vec<String>,
+    pub path: Vec<PathEntry>,
 }
 
 
@@ -231,21 +231,29 @@ pub(self) mod parsers {
                 nom::sequence::tuple((
                     nom::multi::separated_nonempty_list(
                         nom::character::complete::char('.'),
-                        nom::bytes::complete::escaped_transform(
-                            nom::combinator::recognize(
-                                nom::sequence::tuple((
-                                    nom::character::complete::alphanumeric1,
-                                    nom::combinator::opt(
-                                        nom::sequence::delimited(
-                                            nom::bytes::complete::tag("("),
-                                            condition_list,
-                                            nom::bytes::complete::tag(")"),
-                                        )
+                        nom::combinator::map(
+                            nom::sequence::tuple((
+                                nom::combinator::opt(
+                                    nom::bytes::complete::escaped_transform(
+                                        nom::character::complete::alphanumeric1,
+                                        '\\',
+                                        nom::bytes::complete::is_a("\\. \t()"),
+                                    ),
+                                ),
+                                nom::combinator::opt(
+                                    nom::sequence::delimited(
+                                        nom::bytes::complete::tag("("),
+                                        condition_list,
+                                        nom::bytes::complete::tag(")"),
                                     )
-                                ))
-                            ),
-                            '\\',
-                            nom::bytes::complete::is_a("\\. \t()"),
+                                )
+                            )),
+                            |(p, c)| {
+                                PathEntry {
+                                    key: p,
+                                    condition: c
+                                }
+                            }
                         )
                     ),
                     nom::combinator::opt(
@@ -385,16 +393,37 @@ pub(self) mod parsers {
         
         #[test]
         fn test_query() {
-            assert_eq!(query("first.second"), Ok(("", 
-                Query {
-                    path: vec!["first".to_owned(), "second".to_owned()]
-                }
-            )));
-            assert_eq!(query("first.second(aaa.bbb==1)"), Ok(("", 
+            assert_eq!(query("first.second"), Ok(("",
                 Query { 
                     path: vec![
-                        "first".to_owned(),
-                        "second(aaa.bbb==1)".to_owned(),
+                        PathEntry {
+                            key: Some("first".to_owned()),
+                            condition: None,
+                        },
+                        PathEntry {
+                            key: Some("second".to_owned()),
+                            condition: None,
+                        },
+                    ] 
+                }
+            )));
+            assert_eq!(query("first.second(aaa.bbb==1)"), Ok(("",
+                Query { 
+                    path: vec![
+                        PathEntry {
+                            key: Some("first".to_owned()),
+                            condition: None,
+                        },
+                        PathEntry {
+                            key: Some("second".to_owned()),
+                            condition: Some(vec![
+                                ConditionListItem::Condition(Condition {
+                                    left: Statement::Path(vec!["aaa".to_owned(), "bbb".to_owned()]),
+                                    sign: "==".to_owned(),
+                                    right: Statement::Integer(1),
+                                })
+                            ]),
+                        },
                     ] 
                 }
             )));
