@@ -39,7 +39,7 @@ pub struct PathEntry {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Query {
-    pub path: Vec<PathEntry>,
+    pub path: Vec<String>,
 }
 
 
@@ -222,6 +222,49 @@ pub(self) mod parsers {
         (i)
     }
 
+    
+
+    #[allow(unused)]
+    fn query(i: &str) -> nom::IResult<&str, Query> {
+        nom::combinator::map(
+            trim(
+                nom::sequence::tuple((
+                    nom::multi::separated_nonempty_list(
+                        nom::character::complete::char('.'),
+                        nom::bytes::complete::escaped_transform(
+                            nom::combinator::recognize(
+                                nom::sequence::tuple((
+                                    nom::character::complete::alphanumeric1,
+                                    nom::combinator::opt(
+                                        nom::sequence::delimited(
+                                            nom::bytes::complete::tag("("),
+                                            condition_list,
+                                            nom::bytes::complete::tag(")"),
+                                        )
+                                    )
+                                ))
+                            ),
+                            '\\',
+                            nom::bytes::complete::is_a("\\. \t()"),
+                        )
+                    ),
+                    nom::combinator::opt(
+                        nom::sequence::tuple((
+                            nom::branch::alt((
+                                nom::bytes::complete::tag("=="),
+                                nom::bytes::complete::tag("!="),
+                                nom::bytes::complete::tag(">"),
+                                nom::bytes::complete::tag("<"),
+                            )),
+                            value,
+                        ))
+                    )
+                ))
+            ),
+            |(path, opt)| Query { path: path }
+        )(i)
+    }
+
     #[cfg(test)]
     mod tests {
         use super::*;
@@ -340,9 +383,21 @@ pub(self) mod parsers {
             )));
         }
         
-        // #[test]
-        // fn test_query() {
-        //     assert_eq!(query("first.second(third.fourth=1).third"), Ok(("", vec![])));
-        // }
+        #[test]
+        fn test_query() {
+            assert_eq!(query("first.second"), Ok(("", 
+                Query {
+                    path: vec!["first".to_owned(), "second".to_owned()]
+                }
+            )));
+            assert_eq!(query("first.second(aaa==1)"), Ok(("", 
+                Query { 
+                    path: vec![
+                        "first".to_owned(),
+                        "second(aaa==1)".to_owned(),
+                    ] 
+                }
+            )));
+        }
     }
 }
