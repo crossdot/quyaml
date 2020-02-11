@@ -1,6 +1,6 @@
 // pub(self) mod parsers;
 mod parsers;
-pub use parsers::query as parse_query;
+pub use parsers::parse_query;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Relation {
@@ -71,3 +71,9 @@ impl std::fmt::Debug for ParseError {
     }
 }
 impl std::error::Error for ParseError { }
+
+impl From<ParseError> for std::io::Error {
+    fn from(pe: ParseError) -> Self {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, pe)
+    }
+}

@@ -6,7 +6,7 @@ use nom::combinator as combinator;
 use nom::sequence as sequence;
 use nom::branch as branch;
 
-pub fn trim<I, O2, E: nom::error::ParseError<I>, G>(sep: G) -> impl Fn(I) -> nom::IResult<I, O2, E>
+fn trim<I, O2, E: nom::error::ParseError<I>, G>(sep: G) -> impl Fn(I) -> nom::IResult<I, O2, E>
 where
     I: nom::InputTakeAtPosition,
     <I as nom::InputTakeAtPosition>::Item: nom::AsChar + Clone,
@@ -173,7 +173,7 @@ fn condition_list(i: &str) -> nom::IResult<&str, Vec<ConditionListItem>> {
 }
 
 #[allow(unused)]
-pub fn query(i: &str) -> nom::IResult<&str, Query> {
+fn query(i: &str) -> nom::IResult<&str, Query> {
     combinator::map(
         trim(
             sequence::tuple((
@@ -216,6 +216,15 @@ pub fn query(i: &str) -> nom::IResult<&str, Query> {
         ),
         |(path, opt)| Query { path: path }
     )(i)
+}
+
+#[allow(unused)]
+pub fn parse_query(i: &str) -> Result<Query, ParseError> {
+    let parse_result = combinator::all_consuming(query)(i);
+    match parse_result {
+        Ok((i, q)) => Result::Ok(q),
+        Err(e) => Result::Err(ParseError)
+    }
 }
 
 #[cfg(test)]

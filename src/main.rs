@@ -1,7 +1,6 @@
 use yaml_rust::{YamlLoader, YamlEmitter, Yaml};
 use clap::Clap;
 use regex::Regex;
-use quyaml;
 
 // use std::io::prelude::*;
 // use std::io::{self, BufRead, Read};
@@ -20,6 +19,9 @@ struct Opts {
 
 fn main() -> Result<(), std::io::Error> {
     let opts: Opts = Opts::parse();
+
+    let query = quyaml::parse_query(&opts.path)?;
+    dbg!(query);
     
     let s =
 "
