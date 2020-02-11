@@ -241,10 +241,12 @@ pub(self) mod parsers {
                                     ),
                                 ),
                                 nom::combinator::opt(
-                                    nom::sequence::delimited(
+                                    trim(
+                                        nom::sequence::delimited(
                                         nom::bytes::complete::tag("("),
-                                        condition_list,
-                                        nom::bytes::complete::tag(")"),
+                                            condition_list,
+                                            nom::bytes::complete::tag(")"),
+                                        )
                                     )
                                 )
                             )),
@@ -407,7 +409,7 @@ pub(self) mod parsers {
                     ] 
                 }
             )));
-            assert_eq!(query("first.second(aaa.bbb=='some_value')"), Ok(("",
+            assert_eq!(query(" first.second ( aaa.bbb == 'some_value' ) "), Ok(("",
                 Query { 
                     path: vec![
                         PathEntry {
