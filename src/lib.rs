@@ -262,7 +262,7 @@ pub(self) mod parsers {
                                 combinator::opt(
                                     trim(
                                         sequence::delimited(
-                                        bytes::tag("("),
+                                            bytes::tag("("),
                                             condition_list,
                                             bytes::tag(")"),
                                         )
