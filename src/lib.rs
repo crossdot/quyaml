@@ -222,10 +222,8 @@ pub(self) mod parsers {
         (i)
     }
 
-    
-
     #[allow(unused)]
-    fn query(i: &str) -> nom::IResult<&str, Query> {
+    pub fn query(i: &str) -> nom::IResult<&str, Query> {
         nom::combinator::map(
             trim(
                 nom::sequence::tuple((
@@ -409,7 +407,7 @@ pub(self) mod parsers {
                     ] 
                 }
             )));
-            assert_eq!(query(" first.second ( aaa.bbb == 'some_value' ) "), Ok(("",
+            assert_eq!(query("first.*(aaa.bbb == 'some_value').third"), Ok(("",
                 Query { 
                     path: vec![
                         PathEntry {
@@ -417,7 +415,7 @@ pub(self) mod parsers {
                             condition: None,
                         },
                         PathEntry {
-                            key: Some("second".to_owned()),
+                            key: Some("*".to_owned()),
                             condition: Some(vec![
                                 ConditionListItem::Condition(Condition {
                                     left: Statement::Path(vec!["aaa".to_owned(), "bbb".to_owned()]),
@@ -425,6 +423,10 @@ pub(self) mod parsers {
                                     right: Statement::String("some_value".to_owned()),
                                 })
                             ]),
+                        },
+                        PathEntry {
+                            key: Some("third".to_owned()),
+                            condition: None,
                         },
                     ] 
                 }
