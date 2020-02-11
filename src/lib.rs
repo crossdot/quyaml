@@ -24,11 +24,22 @@ pub enum Statement {
     Path(Vec<String>),
 }
 
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum CompareSign {
+    Eq,
+    Ne,
+    Gt,
+    Lt,
+    Ge,
+    Le,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Condition {
-    pub left : Statement,
-    pub sign : String,
-    pub right : Statement,
+    pub left: Statement,
+    pub sign: CompareSign,
+    pub right: Statement,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -59,6 +70,12 @@ impl std::error::Error for ParseError { }
 
 pub(self) mod parsers {
     use super::*;
+    use nom::character::complete as character;
+    use nom::bytes::complete as bytes;
+    use nom::multi as multi;
+    use nom::combinator as combinator;
+    use nom::sequence as sequence;
+    use nom::branch as branch;
 
     pub fn trim<I, O2, E: nom::error::ParseError<I>, G>(sep: G) -> impl Fn(I) -> nom::IResult<I, O2, E>
     where
@@ -67,13 +84,10 @@ pub(self) mod parsers {
         G: Fn(I) -> nom::IResult<I, O2, E>,
     {
         move |input: I| {
-            // let (input, _) = nom::character::complete::space0(input)?;
-            // let (input, o2) = sep(input)?;
-            // nom::character::complete::space0(input).map(|(i, _)| (i, o2))
-            nom::sequence::delimited(
-                nom::character::complete::space0,
+            sequence::delimited(
+                character::space0,
                 &sep,
-                nom::character::complete::space0,
+                character::space0,
             )(input)
         }
     }
@@ -81,12 +95,12 @@ pub(self) mod parsers {
     #[allow(unused)]
     fn unescaped_path(i: &str) -> nom::IResult<&str, Vec<String>> {
         trim(
-            nom::multi::separated_nonempty_list(
-                nom::character::complete::char('.'),
-                nom::bytes::complete::escaped_transform(
-                    nom::bytes::complete::is_not("\\. \t=<>!&|^()"),
+            multi::separated_nonempty_list(
+                character::char('.'),
+                bytes::escaped_transform(
+                    bytes::is_not("\\. \t=<>!&|^()"),
                     '\\',
-                    nom::bytes::complete::is_a("\\. \t()"),
+                    bytes::is_a("\\. \t()"),
                 )
             )
         )(i)
@@ -94,72 +108,79 @@ pub(self) mod parsers {
 
     #[allow(unused)]
     fn quoted_string(i: &str) -> nom::IResult<&str, &str> {
-        nom::branch::alt((
-            nom::sequence::delimited(
-                nom::bytes::complete::tag("\""),
-                nom::bytes::complete::escaped(
-                    nom::bytes::complete::is_not("\\\""),
+        branch::alt((
+            sequence::delimited(
+                bytes::tag("\""),
+                bytes::escaped(
+                    bytes::is_not("\\\""),
                     '\\',
-                    nom::bytes::complete::is_a("\\\""),
+                    bytes::is_a("\\\""),
                 ),
-                nom::bytes::complete::tag("\"")
+                bytes::tag("\"")
             ),
-            nom::sequence::delimited(
-                nom::bytes::complete::tag("'"),
-                nom::bytes::complete::escaped(
-                    nom::bytes::complete::is_not("\\'"),
+            sequence::delimited(
+                bytes::tag("'"),
+                bytes::escaped(
+                    bytes::is_not("\\'"),
                     '\\',
-                    nom::bytes::complete::is_a("\\'"),
+                    bytes::is_a("\\'"),
                 ),
-                nom::bytes::complete::tag("'")
+                bytes::tag("'")
             ),
         ))(i)
     }
 
     #[allow(unused)]
     fn boolean(i: &str) -> nom::IResult<&str, bool> {
-        nom::branch::alt((
-            nom::combinator::map(nom::bytes::complete::tag("true"), |_| true),
-            nom::combinator::map(nom::bytes::complete::tag("false"), |_| false),
+        branch::alt((
+            combinator::map(bytes::tag("true"), |_| true),
+            combinator::map(bytes::tag("false"), |_| false),
         ))(i)
     }
 
     #[allow(unused)]
     fn value(i: &str) -> nom::IResult<&str, Statement> {
         trim(
-            nom::branch::alt((
-                nom::combinator::map(boolean, |v| Statement::Boolean(v)),
-                nom::combinator::map(nom::bytes::complete::tag("null"), |_| Statement::None),
-                nom::combinator::map(nom::number::complete::recognize_float, |s: &str| {
+            branch::alt((
+                combinator::map(boolean, |v| Statement::Boolean(v)),
+                combinator::map(bytes::tag("null"), |_| Statement::None),
+                combinator::map(nom::number::complete::recognize_float, |s: &str| {
                     if s.chars().all(|c| c.is_numeric() || c == '-') {
                         Statement::Integer(s.parse().unwrap())
                     } else {
                         Statement::Double(s.parse().unwrap())
                     }
                 }),
-                nom::combinator::map(quoted_string, |s: &str| Statement::String(s.to_owned())),
-                nom::combinator::map(unescaped_path, |path: Vec<String>| Statement::Path(path)),
+                combinator::map(quoted_string, |s: &str| Statement::String(s.to_owned())),
+                combinator::map(unescaped_path, |path: Vec<String>| Statement::Path(path)),
             ))
         )(i)
     }
 
     #[allow(unused)]
+    fn compare_sign(i: &str) -> nom::IResult<&str, CompareSign> {
+        branch::alt((
+            combinator::value(CompareSign::Eq, bytes::tag("==")),
+            combinator::value(CompareSign::Ne, bytes::tag("!=")),
+            combinator::value(CompareSign::Ge, bytes::tag(">=")),
+            combinator::value(CompareSign::Le, bytes::tag("<=")),
+            combinator::value(CompareSign::Gt, bytes::tag(">")),
+            combinator::value(CompareSign::Lt, bytes::tag("<")),
+        ))(i)
+    }
+
+    #[allow(unused)]
     fn condition(i: &str) -> nom::IResult<&str, Condition> {
         trim(
-            nom::combinator::map(
-                nom::sequence::tuple((
+            combinator::map(
+                sequence::tuple((
                     value,
-                    nom::branch::alt((
-                        nom::bytes::complete::tag("=="),
-                        nom::bytes::complete::tag("!="),
-                        nom::bytes::complete::tag(">"),
-                        nom::bytes::complete::tag("<"),
-                    )),
+                    compare_sign,
                     value,
                 )),
                 |(left, relation, right)| Condition {
                     left: left,
-                    sign: relation.to_owned(),
+                    sign: relation,
                     right: right,
                 }
             )
@@ -169,10 +190,10 @@ pub(self) mod parsers {
     #[allow(unused)]
     fn relation(i: &str) -> nom::IResult<&str, Relation> {
         trim(
-            nom::branch::alt((
-                nom::combinator::map(nom::bytes::complete::tag("||"), |_| Relation::Or),
-                nom::combinator::map(nom::bytes::complete::tag("&&"), |_| Relation::And),
-                nom::combinator::map(nom::bytes::complete::tag("^"), |_| Relation::Xor),
+            branch::alt((
+                combinator::map(bytes::tag("||"), |_| Relation::Or),
+                combinator::map(bytes::tag("&&"), |_| Relation::And),
+                combinator::map(bytes::tag("^"), |_| Relation::Xor),
             ))
         )(i)
     }
@@ -180,17 +201,17 @@ pub(self) mod parsers {
     #[allow(unused)]
     fn condition_list_item(i: &str) -> nom::IResult<&str, ConditionListItem> {
         trim(
-            nom::branch::alt((
-                nom::combinator::map(
-                    nom::sequence::delimited(
-                        nom::bytes::complete::tag("("),
+            branch::alt((
+                combinator::map(
+                    sequence::delimited(
+                        bytes::tag("("),
                         condition_list,
-                        nom::bytes::complete::tag(")")
+                        bytes::tag(")")
                     ),
                     |g| ConditionListItem::Group(g)
                 ),
-                nom::combinator::map(condition, |st| ConditionListItem::Condition(st)),
-                nom::combinator::map(value, |v| ConditionListItem::Statement(v)),
+                combinator::map(condition, |st| ConditionListItem::Condition(st)),
+                combinator::map(value, |v| ConditionListItem::Statement(v)),
             ))
         )(i)
     }
@@ -198,12 +219,12 @@ pub(self) mod parsers {
     #[allow(unused)]
     fn condition_list(i: &str) -> nom::IResult<&str, Vec<ConditionListItem>> {
         let mut list = Vec::new();
-        nom::combinator::map(
-            nom::sequence::tuple((
-                nom::multi::fold_many0(
-                    nom::sequence::tuple((
+        combinator::map(
+            sequence::tuple((
+                multi::fold_many0(
+                    sequence::tuple((
                         condition_list_item,
-                        nom::combinator::map(relation, |v| ConditionListItem::Relation(v))
+                        combinator::map(relation, |v| ConditionListItem::Relation(v))
                     )),
                     list,
                     |mut acc: Vec<_>, (st, rel)| {
@@ -224,26 +245,26 @@ pub(self) mod parsers {
 
     #[allow(unused)]
     pub fn query(i: &str) -> nom::IResult<&str, Query> {
-        nom::combinator::map(
+        combinator::map(
             trim(
-                nom::sequence::tuple((
-                    nom::multi::separated_nonempty_list(
-                        nom::character::complete::char('.'),
-                        nom::combinator::map(
-                            nom::sequence::tuple((
-                                nom::combinator::opt(
-                                    nom::bytes::complete::escaped_transform(
-                                        nom::bytes::complete::is_not("\\. \t=<>!&|^()"),
+                sequence::tuple((
+                    multi::separated_nonempty_list(
+                        character::char('.'),
+                        combinator::map(
+                            sequence::tuple((
+                                combinator::opt(
+                                    bytes::escaped_transform(
+                                        bytes::is_not("\\. \t=<>!&|^()"),
                                         '\\',
-                                        nom::bytes::complete::is_a("\\. \t()"),
+                                        bytes::is_a("\\. \t()"),
                                     ),
                                 ),
-                                nom::combinator::opt(
+                                combinator::opt(
                                     trim(
-                                        nom::sequence::delimited(
-                                        nom::bytes::complete::tag("("),
+                                        sequence::delimited(
+                                        bytes::tag("("),
                                             condition_list,
-                                            nom::bytes::complete::tag(")"),
+                                            bytes::tag(")"),
                                         )
                                     )
                                 )
@@ -256,14 +277,9 @@ pub(self) mod parsers {
                             }
                         )
                     ),
-                    nom::combinator::opt(
-                        nom::sequence::tuple((
-                            nom::branch::alt((
-                                nom::bytes::complete::tag("=="),
-                                nom::bytes::complete::tag("!="),
-                                nom::bytes::complete::tag(">"),
-                                nom::bytes::complete::tag("<"),
-                            )),
+                    combinator::opt(
+                        sequence::tuple((
+                            compare_sign,
                             value,
                         ))
                     )
@@ -312,17 +328,17 @@ pub(self) mod parsers {
         fn test_condition() {
             assert_eq!(condition("true == null"), Ok(("", Condition {
                 left: Statement::Boolean(true),
-                sign: "==".to_owned(),
+                sign: CompareSign::Eq,
                 right: Statement::None,
             })));
             assert_eq!(condition("first.second==null"), Ok(("", Condition {
                 left: Statement::Path(vec!["first".to_owned(), "second".to_owned()]),
-                sign: "==".to_owned(),
+                sign: CompareSign::Eq,
                 right: Statement::None,
             })));
             assert_eq!(condition("10==10.1"), Ok(("", Condition {
                 left: Statement::Integer(10),
-                sign: "==".to_owned(),
+                sign: CompareSign::Eq,
                 right: Statement::Double(10.1),
             })));
         }
@@ -363,7 +379,7 @@ pub(self) mod parsers {
                     ConditionListItem::Group(vec![
                         ConditionListItem::Condition(Condition {
                             left: Statement::Boolean(true),
-                            sign: "==".to_owned(),
+                            sign: CompareSign::Eq,
                             right: Statement::Boolean(false)
                         })
                     ])
@@ -382,7 +398,7 @@ pub(self) mod parsers {
                             ConditionListItem::Relation(Relation::Or),
                             ConditionListItem::Condition(Condition {
                                 left: Statement::Boolean(true),
-                                sign: "!=".to_owned(),
+                                sign: CompareSign::Ne,
                                 right: Statement::Boolean(false),
                             }),
                         ]
@@ -419,7 +435,7 @@ pub(self) mod parsers {
                             condition: Some(vec![
                                 ConditionListItem::Condition(Condition {
                                     left: Statement::Path(vec!["aaa".to_owned(), "bbb".to_owned()]),
-                                    sign: "==".to_owned(),
+                                    sign: CompareSign::Eq,
                                     right: Statement::String("some_value".to_owned()),
                                 })
                             ]),
