@@ -235,7 +235,7 @@ pub(self) mod parsers {
                             nom::sequence::tuple((
                                 nom::combinator::opt(
                                     nom::bytes::complete::escaped_transform(
-                                        nom::character::complete::alphanumeric1,
+                                        nom::bytes::complete::is_not("\\. \t=<>!&|^()"),
                                         '\\',
                                         nom::bytes::complete::is_a("\\. \t()"),
                                     ),
@@ -407,7 +407,7 @@ pub(self) mod parsers {
                     ] 
                 }
             )));
-            assert_eq!(query("first.second(aaa.bbb==1)"), Ok(("",
+            assert_eq!(query("first.second(aaa.bbb=='some_value')"), Ok(("",
                 Query { 
                     path: vec![
                         PathEntry {
@@ -420,7 +420,7 @@ pub(self) mod parsers {
                                 ConditionListItem::Condition(Condition {
                                     left: Statement::Path(vec!["aaa".to_owned(), "bbb".to_owned()]),
                                     sign: "==".to_owned(),
-                                    right: Statement::Integer(1),
+                                    right: Statement::String("some_value".to_owned()),
                                 })
                             ]),
                         },
