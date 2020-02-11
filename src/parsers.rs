@@ -219,11 +219,14 @@ fn query(i: &str) -> nom::IResult<&str, Query> {
 }
 
 #[allow(unused)]
-pub fn parse_query(i: &str) -> Result<Query, ParseError> {
+pub fn parse_query(i: &str) -> Result<Query, std::io::Error> {
     let parse_result = combinator::all_consuming(query)(i);
     match parse_result {
         Ok((i, q)) => Result::Ok(q),
-        Err(e) => Result::Err(ParseError)
+        Err(e) => Result::Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("{}", e)
+        ))
     }
 }
 

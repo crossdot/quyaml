@@ -21,7 +21,6 @@ fn main() -> Result<(), std::io::Error> {
     let opts: Opts = Opts::parse();
 
     let query = quyaml::parse_query(&opts.path)?;
-    dbg!(query);
     
     let s =
 "
